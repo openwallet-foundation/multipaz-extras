@@ -1,0 +1,258 @@
+diff --git a/lib/CMake/proofs.cmake b/lib/CMake/proofs.cmake
+index c5a4d1e..b94229a 100644
+--- a/lib/CMake/proofs.cmake
++++ b/lib/CMake/proofs.cmake
+@@ -16,6 +16,7 @@ add_compile_definitions(OPENSSL_SUPPRESS_DEPRECATED=1)
+ include(GoogleTest)
+ find_package(benchmark REQUIRED)
+ find_package(GTest REQUIRED)
++find_package(OpenSSL REQUIRED)
+ 
+ macro(proofs_add_testing_libraries PROG)
+     # libraries that are common enough to be useful in all tests
+@@ -28,10 +29,12 @@ macro(proofs_add_testing_libraries PROG)
+ #    target_link_libraries(${PROG} -static)
+ 
+     # on Debian buster, gtest seems to need pthread
+-    target_link_libraries(${PROG} gtest pthread)
++    target_link_libraries(${PROG} GTest::gtest GTest::gtest_main)
+     target_link_libraries(${PROG} benchmark::benchmark)
++    target_link_libraries(${PROG} OpenSSL::Crypto)
++    target_link_libraries(${PROG} ${CMAKE_DL_LIBS})
+ 
+-    gtest_discover_tests(${PROG})
++    #gtest_discover_tests(${PROG})
+ endmacro()
+ 
+ macro(proofs_add_test PROG)
+@@ -39,6 +42,7 @@ macro(proofs_add_test PROG)
+     target_link_libraries(${PROG} ec)    
+     target_link_libraries(${PROG} algebra)
+     target_link_libraries(${PROG} util)
++    target_link_libraries(${PROG} OpenSSL::Crypto)
+     proofs_add_testing_libraries(${PROG})
+ endmacro()
+ 
+diff --git a/lib/CMakeLists.txt b/lib/CMakeLists.txt
+index 92fc7cc..f6691b2 100644
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -12,15 +12,14 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++set(OPENSSL_USE_STATIC_LIBS TRUE)
++find_package(OpenSSL REQUIRED)
++
+ cmake_minimum_required(VERSION 3.13)
+ project(proofs)
+ set(CMAKE_CXX_STANDARD 17)
+ include(CMake/proofs.cmake)
+ enable_testing()
+-if (CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
+-  link_directories("/opt/homebrew/lib")
+-  include_directories("/opt/homebrew/include")
+-endif()
+ 
+ # add compiler flags for all known ISA's
+ string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCHITECTURE)
+@@ -25,16 +25,16 @@
+ string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCHITECTURE)
+
+ if(ARCHITECTURE MATCHES "x86_64")
+-    set(ARCH_FLAGS -mpclmul)
++    set(ARCH_FLAGS -mpclmul -O3)
+ elseif(ARCHITECTURE MATCHES "i386")
+-    set(ARCH_FLAGS -msse2 -mpclmul)
++    set(ARCH_FLAGS -msse2 -mpclmul -O3)
+ elseif(ARCHITECTURE MATCHES "aarch64")
+-    set(ARCH_FLAGS -march=armv8-a -march=armv8-a+crypto)
++    set(ARCH_FLAGS -march=armv8-a -march=armv8-a+crypto -O3)
+ elseif(ARCHITECTURE MATCHES "armv7l")
+-    set(ARCH_FLAGS -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard)
++    set(ARCH_FLAGS -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -O3)
+ elseif(ARCHITECTURE MATCHES "arm64")
+     # Mac Arm
+-    set(ARCH_FLAGS -mcpu=apple-m1 -march=armv8-a+crypto)
++    set(ARCH_FLAGS -mcpu=apple-m1 -march=armv8-a+crypto -O3)
+ else()
+     set(ARCH_FLAGS "")
+ endif()
+diff --git a/lib/algebra/CMakeLists.txt b/lib/algebra/CMakeLists.txt
+index acd3575..15e5d1f 100644
+--- a/lib/algebra/CMakeLists.txt
++++ b/lib/algebra/CMakeLists.txt
+@@ -13,6 +13,7 @@
+ # limitations under the License.
+ 
+ add_library(algebra OBJECT nat.cc)
++target_link_libraries(algebra OpenSSL::Crypto)
+ 
+ proofs_add_tests(fft_interpolation_test interpolation_test
+ reed_solomon_test fft_test limb_test rfft_test fp2_test
+diff --git a/lib/algebra/nat_test.cc b/lib/algebra/nat_test.cc
+index 21b1048..1cb40d4 100644
+--- a/lib/algebra/nat_test.cc
++++ b/lib/algebra/nat_test.cc
+@@ -118,6 +118,7 @@ TEST(Nat, BadStrings) {
+   }
+ }
+ 
++/* EXPECT_DEATH not available on iOS
+ TEST(Nat, BadDigits) {
+   std::string ok = "0123456789abcdefABCDEF";
+   for (uint8_t i = 0; i < (uint8_t)256; ++i) {
+@@ -126,6 +127,7 @@ TEST(Nat, BadDigits) {
+     }
+   }
+ }
++*/
+ 
+ }  // namespace
+ }  // namespace proofs
+diff --git a/lib/circuits/compiler/CMakeLists.txt b/lib/circuits/compiler/CMakeLists.txt
+index 3662fc6..2696c96 100644
+--- a/lib/circuits/compiler/CMakeLists.txt
++++ b/lib/circuits/compiler/CMakeLists.txt
+@@ -13,3 +13,4 @@
+ # limitations under the License.
+ 
+ proofs_add_tests(compiler_test canonicalization_test)
++target_link_libraries(compiler_test OpenSSL::Crypto)
+diff --git a/lib/circuits/ecdsa/CMakeLists.txt b/lib/circuits/ecdsa/CMakeLists.txt
+index d1c5fa1..d12040f 100644
+--- a/lib/circuits/ecdsa/CMakeLists.txt
++++ b/lib/circuits/ecdsa/CMakeLists.txt
+@@ -13,7 +13,7 @@
+ # limitations under the License.
+ 
+ proofs_add_tests(verify_test)
+-target_link_libraries(verify_test ec util)
++target_link_libraries(verify_test ec util OpenSSL::Crypto)
+ 
+ proofs_add_tests(verify_external_test)
+-target_link_libraries(verify_external_test ec util crypto)
++target_link_libraries(verify_external_test ec util OpenSSL::Crypto)
+diff --git a/lib/circuits/jwt/CMakeLists.txt b/lib/circuits/jwt/CMakeLists.txt
+index 5086bbb..42797fa 100644
+--- a/lib/circuits/jwt/CMakeLists.txt
++++ b/lib/circuits/jwt/CMakeLists.txt
+@@ -13,4 +13,4 @@
+ # limitations under the License.
+ 
+ proofs_add_tests(jwt_test)
+-target_link_libraries(jwt_test flatsha base64)
++target_link_libraries(jwt_test flatsha base64 OpenSSL::Crypto)
+diff --git a/lib/circuits/logic/logic_test.cc b/lib/circuits/logic/logic_test.cc
+index 839a56b..bd314df 100644
+--- a/lib/circuits/logic/logic_test.cc
++++ b/lib/circuits/logic/logic_test.cc
+@@ -31,11 +31,13 @@ using Logic = Logic<Field, EvaluationBackend>;
+ using EltW = Logic::EltW;
+ const Field F("18446744073709551557");
+ 
++/* EXPECT_DEATH not available on iOS
+ TEST(Logic, Assert0) {
+   const EvaluationBackend ebk(F);
+   const Logic L(&ebk, F);
+   EXPECT_DEATH(L.assert0(L.konst(1)), "a != F.zero()");
+ }
++*/
+ 
+ TEST(Logic, Simple) {
+   const EvaluationBackend ebk(F);
+diff --git a/lib/circuits/mdoc/CMakeLists.txt b/lib/circuits/mdoc/CMakeLists.txt
+index 0ac014c..4335ffe 100644
+--- a/lib/circuits/mdoc/CMakeLists.txt
++++ b/lib/circuits/mdoc/CMakeLists.txt
+@@ -12,8 +12,10 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++find_package(zstd REQUIRED)
++
+ add_library(mdoc mdoc_zk.cc zk_spec.cc)
+-target_link_libraries(mdoc flatsha ec algebra util zstd)
++target_link_libraries(mdoc flatsha ec algebra util zstd::libzstd)
+ 
+ add_library(mdoc_static STATIC mdoc_zk.cc zk_spec.cc
+     $<TARGET_OBJECTS:flatsha>
+@@ -21,6 +23,8 @@ add_library(mdoc_static STATIC mdoc_zk.cc zk_spec.cc
+     $<TARGET_OBJECTS:algebra>
+     $<TARGET_OBJECTS:util>
+ )
++target_link_libraries(mdoc_static OpenSSL::Crypto)
++target_link_libraries(mdoc_static zstd::libzstd)
+ 
+ proofs_add_test(mdoc_signature_test)
+ target_link_libraries(mdoc_signature_test mdoc)
+@@ -31,9 +35,9 @@ target_link_libraries(mdoc_signature_test mdoc)
+ # link mdoc_zk_test explicitly against the static library
+ # so that we know that the static library works
+ add_executable(mdoc_zk_test mdoc_zk_test.cc)
+-target_link_libraries(mdoc_zk_test mdoc_static)
++target_link_libraries(mdoc_zk_test mdoc_static OpenSSL::Crypto)
+ proofs_add_testing_libraries(mdoc_zk_test)
+-target_link_libraries(mdoc_zk_test crypto zstd)
++target_link_libraries(mdoc_zk_test OpenSSL::Crypto zstd::libzstd)
+ 
+ set(installable_libs mdoc_static)
+ install(TARGETS ${installable_libs} DESTINATION lib)
+diff --git a/lib/circuits/sha/CMakeLists.txt b/lib/circuits/sha/CMakeLists.txt
+index 943a783..c8d1f3d 100644
+--- a/lib/circuits/sha/CMakeLists.txt
++++ b/lib/circuits/sha/CMakeLists.txt
+@@ -15,4 +15,4 @@
+ add_library(flatsha OBJECT flatsha256_witness.cc sha256_constants.cc)
+ 
+ proofs_add_tests(flatsha256_circuit_test)
+-target_link_libraries(flatsha256_circuit_test flatsha)
++target_link_libraries(flatsha256_circuit_test flatsha OpenSSL::Crypto)
+diff --git a/lib/testing/CMakeLists.txt b/lib/testing/CMakeLists.txt
+index 21f1c51..1237e14 100644
+--- a/lib/testing/CMakeLists.txt
++++ b/lib/testing/CMakeLists.txt
+@@ -14,3 +14,5 @@
+ 
+ add_library(testing_main test_main.cc)
+ 
++target_link_libraries(testing_main GTest::GTest)
++target_link_libraries(testing_main benchmark::benchmark)
+diff --git a/lib/util/CMakeLists.txt b/lib/util/CMakeLists.txt
+index 85a6e71..e2d278e 100644
+--- a/lib/util/CMakeLists.txt
++++ b/lib/util/CMakeLists.txt
+@@ -12,8 +12,10 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++find_package(zstd REQUIRED)
++
+ add_library(util OBJECT log.cc crypto.cc)
+-target_link_libraries(util crypto zstd)
++target_link_libraries(util OpenSSL::Crypto zstd::libzstd)
+ 
+ proofs_add_tests(ceildiv_test)
+ 
+diff --git a/lib/util/log.cc b/lib/util/log.cc
+index 6b41bac..30c0840 100644
+--- a/lib/util/log.cc
++++ b/lib/util/log.cc
+@@ -22,7 +22,7 @@
+ //   2. If we are building for google3, use the absl logging library.
+ //   3. Otherwise, use the std::chrono and fprintf(stderr) for logging.
+ 
+-#if defined(__ANDROID__)
++#if defined(DISABLED_XXX__ANDROID__)
+ #include <android/log.h>
+ #endif
+ 
+@@ -64,7 +64,7 @@ void log(enum LogLevel l, const char* format, ...) {
+   vsnprintf(tmp, sizeof(tmp), format, args);
+   va_end(args);
+ 
+-#if defined(__ANDROID__)
++#if defined(DISABLED_XXX__ANDROID__)
+   if (l <= _LOG_LEVEL) {
+     switch (l) {
+       case ERROR:
