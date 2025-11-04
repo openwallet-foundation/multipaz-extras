@@ -74,8 +74,8 @@ build_linux() {
 	local INSTALL_DIR="${OUTPUT_DIR}/${ARCH}"
 	mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
 
-	local CC="/Users/zeuthen/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-gcc"
-	local STRIP="/Users/zeuthen/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-strip"
+	local CC="~/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-gcc"
+	local STRIP="~/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-strip"
 	pushd "${SCRIPT_DIR}/jnisrc"
 	$CC \
 	    org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
