@@ -14,10 +14,12 @@ val projectVersionCode: Int by extra {
 
 // The version number of the project.
 //
+// We currently use the same version numbers as in the Multipaz project.
+//
 // For a tagged release, projectVersionNext should be blank and the next commit
 // following the release should bump it to the next version number.
 //
-val projectVersionLast = "0.1.0"
+val projectVersionLast = "0.95.0"
 val projectVersionNext = ""
 
 private fun runCommand(args: List<String>): String {
