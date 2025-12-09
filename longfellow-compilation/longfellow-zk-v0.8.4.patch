@@ -34,10 +34,10 @@ index c5a4d1e..b94229a 100644
  endmacro()
  
 diff --git a/lib/CMakeLists.txt b/lib/CMakeLists.txt
-index 92fc7cc..f6691b2 100644
+index 44792d3..0bea4c0 100644
 --- a/lib/CMakeLists.txt
 +++ b/lib/CMakeLists.txt
-@@ -12,15 +12,14 @@
+@@ -12,30 +12,29 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  
@@ -56,9 +56,7 @@ index 92fc7cc..f6691b2 100644
  
  # add compiler flags for all known ISA's
  string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCHITECTURE)
-@@ -25,16 +25,16 @@
- string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCHITECTURE)
-
+ 
  if(ARCHITECTURE MATCHES "x86_64")
 -    set(ARCH_FLAGS -mpclmul)
 +    set(ARCH_FLAGS -mpclmul -O3)
@@ -78,20 +76,8 @@ index 92fc7cc..f6691b2 100644
  else()
      set(ARCH_FLAGS "")
  endif()
-diff --git a/lib/algebra/CMakeLists.txt b/lib/algebra/CMakeLists.txt
-index acd3575..15e5d1f 100644
---- a/lib/algebra/CMakeLists.txt
-+++ b/lib/algebra/CMakeLists.txt
-@@ -13,6 +13,7 @@
- # limitations under the License.
- 
- add_library(algebra OBJECT nat.cc)
-+target_link_libraries(algebra OpenSSL::Crypto)
- 
- proofs_add_tests(fft_interpolation_test interpolation_test
- reed_solomon_test fft_test limb_test rfft_test fp2_test
 diff --git a/lib/algebra/nat_test.cc b/lib/algebra/nat_test.cc
-index 21b1048..1cb40d4 100644
+index 9f6b7b9..5c24adc 100644
 --- a/lib/algebra/nat_test.cc
 +++ b/lib/algebra/nat_test.cc
 @@ -118,6 +118,7 @@ TEST(Nat, BadStrings) {
@@ -108,8 +94,8 @@ index 21b1048..1cb40d4 100644
  }
 +*/
  
- }  // namespace
- }  // namespace proofs
+ TEST(Nat, Mac) {
+   Nat<7> x0(
 diff --git a/lib/circuits/compiler/CMakeLists.txt b/lib/circuits/compiler/CMakeLists.txt
 index 3662fc6..2696c96 100644
 --- a/lib/circuits/compiler/CMakeLists.txt
@@ -144,12 +130,12 @@ index 5086bbb..42797fa 100644
 -target_link_libraries(jwt_test flatsha base64)
 +target_link_libraries(jwt_test flatsha base64 OpenSSL::Crypto)
 diff --git a/lib/circuits/logic/logic_test.cc b/lib/circuits/logic/logic_test.cc
-index 839a56b..bd314df 100644
+index a34cc88..3992c79 100644
 --- a/lib/circuits/logic/logic_test.cc
 +++ b/lib/circuits/logic/logic_test.cc
-@@ -31,11 +31,13 @@ using Logic = Logic<Field, EvaluationBackend>;
- using EltW = Logic::EltW;
- const Field F("18446744073709551557");
+@@ -39,11 +39,13 @@ void expect_vequal(const Logic& L, const Logic::bitvec<N>& a,
+   }
+ }
  
 +/* EXPECT_DEATH not available on iOS
  TEST(Logic, Assert0) {
@@ -162,31 +148,37 @@ index 839a56b..bd314df 100644
  TEST(Logic, Simple) {
    const EvaluationBackend ebk(F);
 diff --git a/lib/circuits/mdoc/CMakeLists.txt b/lib/circuits/mdoc/CMakeLists.txt
-index 0ac014c..4335ffe 100644
+index 0b78367..e528ea3 100644
 --- a/lib/circuits/mdoc/CMakeLists.txt
 +++ b/lib/circuits/mdoc/CMakeLists.txt
-@@ -12,8 +12,10 @@
+@@ -12,9 +12,11 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  
 +find_package(zstd REQUIRED)
 +
- add_library(mdoc mdoc_zk.cc zk_spec.cc)
+ add_library(mdoc mdoc_zk.cc mdoc_decompress.cc mdoc_generate_circuit.cc
+                  mdoc_circuit_id.cc zk_spec.cc)
 -target_link_libraries(mdoc flatsha ec algebra util zstd)
 +target_link_libraries(mdoc flatsha ec algebra util zstd::libzstd)
  
- add_library(mdoc_static STATIC mdoc_zk.cc zk_spec.cc
-     $<TARGET_OBJECTS:flatsha>
-@@ -21,6 +23,8 @@ add_library(mdoc_static STATIC mdoc_zk.cc zk_spec.cc
-     $<TARGET_OBJECTS:algebra>
+ add_library(mdoc_static STATIC
+                         mdoc_zk.cc mdoc_decompress.cc mdoc_generate_circuit.cc
+@@ -25,6 +27,13 @@ add_library(mdoc_static STATIC
      $<TARGET_OBJECTS:util>
  )
-+target_link_libraries(mdoc_static OpenSSL::Crypto)
-+target_link_libraries(mdoc_static zstd::libzstd)
  
++if(USE_COMMON_CRYPTO)
++    target_compile_definitions(mdoc_static PUBLIC USE_COMMON_CRYPTO="1")
++    target_link_libraries(mdoc_static PRIVATE "-framework Security" zstd::libzstd)
++else()
++    target_link_libraries(mdoc_static PRIVATE OpenSSL::Crypto zstd::libzstd)
++endif()
++
  proofs_add_test(mdoc_signature_test)
  target_link_libraries(mdoc_signature_test mdoc)
-@@ -31,9 +35,9 @@ target_link_libraries(mdoc_signature_test mdoc)
+ 
+@@ -37,9 +46,9 @@ target_link_libraries(mdoc_1f_test mdoc)
  # link mdoc_zk_test explicitly against the static library
  # so that we know that the static library works
  add_executable(mdoc_zk_test mdoc_zk_test.cc)
@@ -208,6 +200,22 @@ index 943a783..c8d1f3d 100644
  proofs_add_tests(flatsha256_circuit_test)
 -target_link_libraries(flatsha256_circuit_test flatsha)
 +target_link_libraries(flatsha256_circuit_test flatsha OpenSSL::Crypto)
+diff --git a/lib/merkle/merkle_tree_test.cc b/lib/merkle/merkle_tree_test.cc
+index 96778a2..473f0b4 100644
+--- a/lib/merkle/merkle_tree_test.cc
++++ b/lib/merkle/merkle_tree_test.cc
+@@ -140,9 +140,11 @@ TEST(MerkleTree, UniqueLeaves) {
+   MerkleTreeVerifier verifier(4, root);
+   std::vector<Digest> proof = {Digest::hash2(leaves[1], leaves[1])};
+ 
++/* EXPECT_DEATH not available on iOS
+   EXPECT_DEATH(
+       verifier.verify_compressed_proof(proof.data(), 1, leaves, ids, 2),
+       "duplicate position in merkle tree requested");
++*/
+ }
+ 
+ TEST(MerkleTree, BatchVerifyProofTooShort) {
 diff --git a/lib/testing/CMakeLists.txt b/lib/testing/CMakeLists.txt
 index 21f1c51..1237e14 100644
 --- a/lib/testing/CMakeLists.txt
@@ -219,10 +227,10 @@ index 21f1c51..1237e14 100644
 +target_link_libraries(testing_main GTest::GTest)
 +target_link_libraries(testing_main benchmark::benchmark)
 diff --git a/lib/util/CMakeLists.txt b/lib/util/CMakeLists.txt
-index 85a6e71..e2d278e 100644
+index 85a6e71..fbfd2d2 100644
 --- a/lib/util/CMakeLists.txt
 +++ b/lib/util/CMakeLists.txt
-@@ -12,8 +12,10 @@
+@@ -12,8 +12,16 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  
@@ -230,10 +238,203 @@ index 85a6e71..e2d278e 100644
 +
  add_library(util OBJECT log.cc crypto.cc)
 -target_link_libraries(util crypto zstd)
-+target_link_libraries(util OpenSSL::Crypto zstd::libzstd)
++
++if(USE_COMMON_CRYPTO)
++    target_compile_definitions(util PUBLIC USE_COMMON_CRYPTO="1")
++    target_link_libraries(util "-framework Security" zstd::libzstd)
++else()
++    target_link_libraries(util OpenSSL::Crypto zstd::libzstd)
++endif()
  
  proofs_add_tests(ceildiv_test)
  
+diff --git a/lib/util/crypto.cc b/lib/util/crypto.cc
+index d09cbb3..2a2cece 100644
+--- a/lib/util/crypto.cc
++++ b/lib/util/crypto.cc
+@@ -18,14 +18,27 @@
+ #include <cstdint>
+ 
+ #include "util/panic.h"
++
++#ifdef USE_COMMON_CRYPTO
++#include <Security/Security.h>
++#else
+ #include "openssl/rand.h"
++#endif
+ 
+ namespace proofs {
+ 
++#ifdef USE_COMMON_CRYPTO
++void rand_bytes(uint8_t out[/*n*/], size_t n) {
++    int rc = SecRandomCopyBytes(nullptr /* kSecRandomDefault */, n, out);
++    check(rc == errSecSuccess, "CommonCrypto SecRandomCopyBytes failed");
++}
++#else
+ void rand_bytes(uint8_t out[/*n*/], size_t n) {
+-  int ret = RAND_bytes(out, n);
+-  check(ret == 1, "openssl RAND_bytes failed");
++    int ret = RAND_bytes(out, n);
++    check(ret == 1, "openssl RAND_bytes failed");
+ }
++#endif
++
+ 
+ void hex_to_str(char out[/* 2*n + 1*/], const uint8_t in[/*n*/], size_t n) {
+   for (size_t i = 0; i < n; ++i) {
+diff --git a/lib/util/crypto.h b/lib/util/crypto.h
+index f345b68..0cb3fa3 100644
+--- a/lib/util/crypto.h
++++ b/lib/util/crypto.h
+@@ -26,46 +26,120 @@
+ #include <cstring>
+ 
+ #include "util/panic.h"
++
++#ifdef USE_COMMON_CRYPTO
++#include <CommonCrypto/CommonCrypto.h>
++#include <CommonCrypto/CommonCryptor.h>
++#else
+ #include "openssl/sha.h"
+ #include "openssl/evp.h"
+ #include "openssl/aes.h"
++#endif
+ 
+ namespace proofs {
+ 
+-constexpr size_t kSHA256DigestSize = 32;
+-constexpr size_t kPRFKeySize = 32;
+-constexpr size_t kPRFInputSize = 16;
+-constexpr size_t kPRFOutputSize = 16;
++    constexpr size_t
++    kSHA256DigestSize = 32;
++    constexpr size_t
++    kPRFKeySize = 32;
++    constexpr size_t
++    kPRFInputSize = 16;
++    constexpr size_t
++    kPRFOutputSize = 16;
+ 
+ class SHA256 {
+  public:
+-  SHA256() { SHA256_Init(&sha_); }
+-
+   // Disable copy for good measure.
+   SHA256(const SHA256&) = delete;
+   SHA256& operator=(const SHA256&) = delete;
+ 
+-  void Update(const uint8_t bytes[/*n*/], size_t n) { SHA256_Update(&sha_, bytes, n); }
+-  void DigestData(uint8_t digest[/* kSHA256DigestSize */]) {
+-    SHA256_Final(digest, &sha_);
+-  }
+-  void CopyState(const SHA256& src) { sha_ = src.sha_; }
+-
+-  void Update8(uint64_t x) {
+-    uint8_t buf[8];
+-    for (size_t i = 0; i < 8; ++i) {
+-      buf[i] = x & 0xff;
+-      x >>= 8;
++    void Update8(uint64_t x) {
++        uint8_t buf[8];
++        for (size_t i = 0; i < 8; ++i) {
++            buf[i] = x & 0xff;
++            x >>= 8;
++        }
++        Update(buf, 8);
+     }
+-    Update(buf, 8);
+-  }
+ 
+- private:
++    void CopyState(const SHA256& src) { sha_ = src.sha_; }
++
++#ifdef USE_COMMON_CRYPTO
++    SHA256() { CC_SHA256_Init(&sha_); }
++    void Update(const uint8_t bytes[/*n*/], size_t n) { CC_SHA256_Update(&sha_, bytes, n); }
++    void DigestData(uint8_t digest[/* kSHA256DigestSize */]) {
++        CC_SHA256_Final(digest, &sha_);
++    }
++private:
++    CC_SHA256_CTX sha_;
++#else
++    SHA256() { SHA256_Init(&sha_); }
++    void Update(const uint8_t bytes[/*n*/], size_t n) { SHA256_Update(&sha_, bytes, n); }
++    void DigestData(uint8_t digest[/* kSHA256DigestSize */]) {
++        SHA256_Final(digest, &sha_);
++    }
++private:
+   SHA256_CTX sha_;
++#endif
+ };
+ 
+ // A pseudo-random function interface. This implementation uses AES in ECB mode.
+ // The caller must ensure that arguments are not reused.
++#ifdef USE_COMMON_CRYPTO
++class PRF {
++public:
++    explicit PRF(const uint8_t key[/*kPRFKeySize*/]) {
++        // Create the Cryptor context.
++        // kCCAlgorithmAES acts as a 128-bit block cipher.
++        // We specify kCCKeySizeAES256 to match EVP_aes_256_ecb.
++        // We use kCCOptionECBMode and NO padding (0 for the options mask implies raw block).
++        CCCryptorStatus status = CCCryptorCreate(
++                kCCEncrypt,
++                kCCAlgorithmAES,
++                kCCOptionECBMode,
++                key,
++                kCCKeySizeAES256,
++                nullptr, // IV is ignored in ECB mode
++                &cryptor_);
++
++        check(status == kCCSuccess, "CCCryptorCreate failed");
++    }
++
++    ~PRF() {
++        if (cryptor_) {
++            CCCryptorRelease(cryptor_);
++        }
++    }
++
++    // Disable copy for good measure.
++    PRF(const PRF&) = delete;
++    PRF& operator=(const PRF&) = delete;
++
++    // Evaluate the PRF on the input and write the output to the output buffer.
++    void Eval(uint8_t out[/*kPRFOutputSize*/], uint8_t in[/*kPRFInputSize*/]) {
++        size_t dataOutMoved = 0;
++
++        // Note: CommonCrypto uses size_t, OpenSSL uses int.
++        // Assuming kPRFOutputSize is sufficient to hold the encrypted block (usually 16 bytes for AES).
++        CCCryptorStatus status = CCCryptorUpdate(
++                cryptor_,
++                in,
++                static_cast<size_t>(kPRFInputSize),
++                out,
++                static_cast<size_t>(kPRFOutputSize),
++                &dataOutMoved);
++
++        check(status == kCCSuccess, "CCCryptorUpdate failed");
++
++        // In strict raw block mode (ECB, no padding), dataOutMoved should equal input size
++        // if input size is a multiple of the block size (16 bytes).
++        check(dataOutMoved == kPRFInputSize, "PRF output size mismatch");
++    }
++
++private:
++    CCCryptorRef cryptor_;
++};
++#else
+ class PRF {
+  public:
+   explicit PRF(const uint8_t key[/*kPRFKeySize*/]) {
+@@ -96,6 +170,7 @@ class PRF {
+  private:
+   EVP_CIPHER_CTX* ctx_;
+ };
++#endif
+ 
+ // Generate n random bytes, following the openssl API convention.
+ // This method will panic if the openssl library fails.
 diff --git a/lib/util/log.cc b/lib/util/log.cc
 index 6b41bac..30c0840 100644
 --- a/lib/util/log.cc

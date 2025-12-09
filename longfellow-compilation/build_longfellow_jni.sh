@@ -40,23 +40,23 @@ build_macos() {
     log "Starting longfellow-jni macOS build..."
 
     build_macos_arch() {
-	local ARCH=$1
-	local INSTALL_DIR="${BUILD_DIR}/install/${ARCH}"
-	mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
-	
-	pushd "${SCRIPT_DIR}/jnisrc"
-	clang \
-	    org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
-	    -I"${JAVA_HOME}/include" \
-	    -I"${JAVA_HOME}/include/darwin" \
-	    -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
-	    -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
-	    -L"${OPENSSL_PATH}/${ARCH}/lib" -lcrypto \
-	    -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
-	    -lstdc++ \
-	    -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib" -install_name @rpath/libzkp.dylib
-	strip "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib"
-	popd
+        local ARCH=$1
+        local INSTALL_DIR="${BUILD_DIR}/install/${ARCH}"
+        mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
+        
+        pushd "${SCRIPT_DIR}/jnisrc"
+        clang \
+            org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
+            -I"${JAVA_HOME}/include" \
+            -I"${JAVA_HOME}/include/darwin" \
+            -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
+            -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
+            -L"${OPENSSL_PATH}/${ARCH}/lib" -lcrypto \
+            -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
+            -lstdc++ \
+            -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib" -install_name @rpath/libzkp.dylib
+        strip "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib"
+        popd
     }
 
     #build_macos_arch "x86_64"
@@ -70,25 +70,26 @@ build_linux() {
     log "Starting longfellow-jni Linux build..."
 
     build_linux_arch() {
-	local ARCH=$1
-	local INSTALL_DIR="${OUTPUT_DIR}/${ARCH}"
-	mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
+        local ARCH=$1
+        local INSTALL_DIR="${OUTPUT_DIR}/${ARCH}"
+        mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
 
-	local CC="~/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-gcc"
-	local STRIP="~/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-strip"
-	pushd "${SCRIPT_DIR}/jnisrc"
-	$CC \
-	    org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
-	    -I"${JAVA_HOME}/include" \
-	    -I"${JAVA_HOME}/include/darwin" \
-	    -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
-	    -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
-	    -L"${OPENSSL_PATH}/${ARCH}/lib64" -lcrypto \
-	    -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
-	    -lstdc++ -fPIC \
-	    -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so" 
-	$STRIP "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
-	popd
+        local CC="${HOME}/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-gcc"
+        local CXX="${HOME}/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-g++"
+        local STRIP="${HOME}/homebrew/Cellar/x86_64-unknown-linux-gnu/13.3.0/bin/x86_64-linux-gnu-strip"
+        pushd "${SCRIPT_DIR}/jnisrc"
+        $CXX \
+            org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
+            -I"${JAVA_HOME}/include" \
+            -I"${JAVA_HOME}/include/darwin" \
+            -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
+            -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
+            -L"${OPENSSL_PATH}/${ARCH}/lib64" -lcrypto \
+            -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
+            -lstdc++ -fPIC \
+            -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so" 
+        $STRIP "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
+        popd
     }
 
     build_linux_arch "x86_64"    
@@ -101,38 +102,38 @@ build_android() {
     log "Starting longfellow-jni Android build..."
 
     build_android_arch() {
-	local ARCH=$1
-	local INSTALL_DIR="${OUTPUT_DIR}/${ARCH}"
-	mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
+        local ARCH=$1
+        local INSTALL_DIR="${OUTPUT_DIR}/${ARCH}"
+        mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
 
-	export SYSROOT="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
-	case $ARCH in
-	    "arm64-v8a")
-		export CC="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android21-clang++"
-		;;
-	    "armeabi-v7a")
-		export CC="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi21-clang++"
-		;;
-	    *)
-		echo "Unsupported ARCH $ARCH"
-		exit 1
-		;;
-	esac
-	export STRIP="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+        export SYSROOT="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+        case $ARCH in
+            "arm64-v8a")
+                export CC="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android21-clang++"
+                ;;
+            "armeabi-v7a")
+                export CC="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi21-clang++"
+                ;;
+            *)
+                echo "Unsupported ARCH $ARCH"
+                exit 1
+                ;;
+        esac
+        export STRIP="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
 
-	pushd "${SCRIPT_DIR}/jnisrc"
-	$CC \
-	    --sysroot=$SYSROOT \
-	    org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
-	    -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
-	    -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
-	    -L"${OPENSSL_PATH}/${ARCH}/lib" -lcrypto \
-	    -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
-	    -static-libstdc++ -fPIC \
-	    -Wl,-z,max-page-size=16384 \
-	    -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
-	$STRIP "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
-	popd
+        pushd "${SCRIPT_DIR}/jnisrc"
+        $CC \
+            --sysroot=$SYSROOT \
+            org_multipaz_mdoc_zkp_longfellow_LongfellowNatives.cc \
+            -I"${LONGFELLOW_ZK_PATH}/${ARCH}/include" \
+            -L"${LONGFELLOW_ZK_PATH}/${ARCH}/lib" -lmdoc_static \
+            -L"${OPENSSL_PATH}/${ARCH}/lib" -lcrypto \
+            -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
+            -static-libstdc++ -fPIC \
+            -Wl,-z,max-page-size=16384 \
+            -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
+        $STRIP "${OUTPUT_DIR}/${ARCH}/lib/libzkp.so"
+        popd
     }
 
     build_android_arch "arm64-v8a"
@@ -147,22 +148,22 @@ mkdir -p "${BUILD_DIR}" "${OUTPUT_DIR}"
 
 case $TARGET_PLATFORM in
     ios)
-	build_ios
-	;;
+        build_ios
+        ;;
     android)
-	build_android
-	;;
+        build_android
+        ;;
     macos)
-	build_macos
-	;;
+        build_macos
+        ;;
     linux)
-	build_linux
-	;;
+        build_linux
+        ;;
     *)
-	echo "Error: Unsupported platform '$TARGET_PLATFORM'."
-	echo "Supported platforms are: ios, android, macos, linux"
-	exit 1
-	;;
+        echo "Error: Unsupported platform '$TARGET_PLATFORM'."
+        echo "Supported platforms are: ios, android, macos, linux"
+        exit 1
+        ;;
 esac
 
 log "Cleaning up intermediate build directory..."

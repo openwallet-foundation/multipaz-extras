@@ -14,7 +14,7 @@ build_openssl() {
     mkdir -p "$OUTPUT_DIR/openssl"
     ./build_openssl.sh linux
     ./build_openssl.sh macos
-    #./build_openssl.sh ios
+    # on iOS we use CommonCrypto instead of OpenSSL ./build_openssl.sh ios
     ./build_openssl.sh android
 }
 
@@ -23,7 +23,7 @@ build_zstd() {
     mkdir -p "$OUTPUT_DIR/zstd"
     ./build_zstd.sh linux
     ./build_zstd.sh macos
-    #./build_zstd.sh ios
+    ./build_zstd.sh ios
     ./build_zstd.sh android
 }
 
@@ -32,7 +32,7 @@ build_googletest() {
     mkdir -p "$OUTPUT_DIR/googletest"
     ./build_googletest.sh linux
     ./build_googletest.sh macos
-    #./build_googletest.sh ios
+    ./build_googletest.sh ios
     ./build_googletest.sh android
 }
 
@@ -41,7 +41,7 @@ build_benchmark() {
     mkdir -p "$OUTPUT_DIR/benchmark"
     ./build_benchmark.sh linux
     ./build_benchmark.sh macos
-    #./build_benchmark.sh ios
+    ./build_benchmark.sh ios
     ./build_benchmark.sh android
 }
 
@@ -50,7 +50,7 @@ build_longfellow() {
     mkdir -p "$OUTPUT_DIR/longfellow"
     ./build_longfellow.sh linux
     ./build_longfellow.sh macos
-    #./build_longfellow.sh ios
+    ./build_longfellow.sh ios
     ./build_longfellow.sh android
 }
 

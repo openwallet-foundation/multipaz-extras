@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'multipaz_vision'
-    spec.version                  = '0.95.0'
+    spec.version                  = '0.96.0-pre.1.5d1ff9b'
     spec.homepage                 = ''
     spec.source                   = { :http=> ''}
     spec.authors                  = ''

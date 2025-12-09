@@ -27,7 +27,7 @@ set -o pipefail # Return value of a pipeline is the value of the last command to
 
 set -x
 
-OPENSSL_VERSION="openssl-3.3.1"
+OPENSSL_VERSION="openssl-3.6.0"
 ANDROID_API_LEVEL=21
 MIN_IOS_SDK_VERSION="13.0"
 
@@ -70,20 +70,25 @@ build_ios() {
 
     # Function to build a specific iOS architecture
     build_ios_arch() {
-        local ARCH=$1
-        local PLATFORM=$2
-        local CONFIGURE_TARGET=$3
+        local ARCH="$1"
+        local PLATFORM="$2"
+        local CONFIGURE_TARGET="$3"
+        local ADDITIONAL_CONFIGURE_ARGS="$4"
         local INSTALL_DIR="${BUILD_DIR}/${ARCH}-${PLATFORM}"
 
         log "Building for iOS: ${PLATFORM} (${ARCH})"
 
         export SDKROOT=$(xcrun --sdk ${PLATFORM} --show-sdk-path)
         export CC=$(xcrun --find -sdk ${PLATFORM} cc)
+        export CXX=$(xcrun --find -sdk ${PLATFORM} c++)
+        export CPP=$(xcrun --find -sdk ${PLATFORM} cpp)
+
         export CFLAGS="-arch ${ARCH} -pipe -Os -isysroot ${SDKROOT} -miphoneos-version-min=${MIN_IOS_SDK_VERSION}"
         export LDFLAGS="-arch ${ARCH} -isysroot ${SDKROOT}"
 
         pushd "${SOURCE_DIR}" > /dev/null
-        ./Configure ${CONFIGURE_TARGET} no-shared no-asm --prefix="${INSTALL_DIR}"
+        git clean -dfx
+        ./Configure ${CONFIGURE_TARGET} ${ADDITIONAL_CONFIGURE_ARGS} no-shared no-asm --prefix="${INSTALL_DIR}"
         make clean
         make -j
         make install_sw
@@ -96,9 +101,9 @@ build_ios() {
     }
 
     # Build for all required iOS architectures
-    build_ios_arch "arm64" "iphoneos" "ios64-cross"
-    build_ios_arch "x86_64" "iphonesimulator" "iossimulator-xcrun"
-    build_ios_arch "arm64" "iphonesimulator" "iossimulator-xcrun"
+    build_ios_arch "arm64" "iphoneos" "ios64-cross" ""
+    build_ios_arch "x86_64" "iphonesimulator" "iossimulator-x86_64-xcrun" ""
+    build_ios_arch "arm64" "iphonesimulator" "iossimulator-arm64-xcrun" "-fembed-bitcode no-hw no-async"
 
     #log "Creating XCFrameworks for iOS..."
     #mkdir -p "${OUTPUT_DIR}"
