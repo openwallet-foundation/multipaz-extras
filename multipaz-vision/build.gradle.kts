@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlinCocoapods)
     id("maven-publish")
+    id("org.jetbrains.dokka") version "2.1.0"
 }
 
 val projectVersionCode: Int by rootProject.extra
@@ -188,7 +189,3 @@ publishing {
 }
 
 tasks.named("generateResourceAccessorsForAndroidMain").configure { dependsOn("sourceReleaseJar") }
-
-subprojects {
-	apply(plugin = "org.jetbrains.dokka")
-}

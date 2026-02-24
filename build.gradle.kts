@@ -1,5 +1,4 @@
 import org.apache.commons.io.output.ByteArrayOutputStream
-import org.jetbrains.dokka.gradle.DokkaTaskPartial
 
 // For `versionCode` we just use the number of commits.
 val projectVersionCode: Int by extra {
@@ -69,17 +68,10 @@ plugins {
     alias(libs.plugins.buildconfig) apply false
     alias(libs.plugins.kotlinCocoapods) apply false
     alias(libs.plugins.skie) apply false
-    id("org.jetbrains.dokka") version "2.0.0"
+
+    id("org.jetbrains.dokka") version "2.1.0"
 }
 
-subprojects {
-    apply(plugin = "org.jetbrains.dokka")
-}
-
-tasks.named("dokkaHtmlMultiModule") {
-    dependsOn(
-        ":dokkaHtmlMultiModule",
-        ":multipaz:dokkaHtmlMultiModule",
-        ":multipaz-models:dokkaHtmlMultiModule"
-    )
+dependencies {
+    dokka(project(":multipaz-vision"))
 }
