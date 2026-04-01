@@ -54,6 +54,7 @@ build_macos() {
             -L"${OPENSSL_PATH}/${ARCH}/lib" -lcrypto \
             -L"${ZSTD_PATH}/${ARCH}/lib" -lzstd \
             -lstdc++ \
+            -framework Security \
             -shared -o "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib" -install_name @rpath/libzkp.dylib
         strip "${OUTPUT_DIR}/${ARCH}/lib/libzkp.dylib"
         popd

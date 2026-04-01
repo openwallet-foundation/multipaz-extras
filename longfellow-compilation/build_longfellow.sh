@@ -5,7 +5,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 set -o pipefail # Return value of a pipeline is the value of the last command to exit with a non-zero status
 set -x
 
-LONGFELLOW_TAG="v0.8.6"
+LONGFELLOW_TAG="v0.9"
 ANDROID_API_LEVEL=21
 MIN_IOS_SDK_VERSION="13.0"
 
@@ -88,7 +88,7 @@ build_ios() {
               -Dbenchmark_DIR="${BENCHMARK_PATH}/${ARCH}-${PLATFORM}/lib/cmake/benchmark" \
               -DOPENSSL_ROOT_DIR="${OPENSSL_PATH}/${ARCH}-${PLATFORM}" \
               -DGTest_ROOT_DIR="${GTEST_PATH}/${ARCH}-${PLATFORM}" \
-              -DGTest_DIR="${GTEST_PATH}/${ARCH}-g${PLATFORM}/lib/cmake/GTest" \
+              -DGTest_DIR="${GTEST_PATH}/${ARCH}-${PLATFORM}/lib/cmake/GTest" \
               -Dzstd_DIR="${ZSTD_PATH}/${ARCH}-${PLATFORM}/lib/cmake/zstd"
 
         make -C "${CMAKE_BUILD_DIR}" mdoc_static
@@ -153,8 +153,12 @@ build_android() {
               -DGTest_DIR="${GTEST_PATH}/${ARCH}/lib/cmake/GTest" \
               -Dzstd_DIR="${ZSTD_PATH}/${ARCH}/lib/cmake/zstd"
 
-        cmake --build "${CMAKE_BUILD_DIR}"
-        cmake --install "${CMAKE_BUILD_DIR}"
+        cmake --build "${CMAKE_BUILD_DIR}" --target mdoc_static
+        mkdir -p "${INSTALL_DIR}/lib"
+        mkdir -p "${INSTALL_DIR}/include"
+        cp "${CMAKE_BUILD_DIR}/circuits/mdoc/libmdoc_static.a" "${INSTALL_DIR}/lib"
+        cp "${SOURCE_DIR}/lib/circuits/mdoc/mdoc_zk.h" "${INSTALL_DIR}/include"
+        #cmake --install "${CMAKE_BUILD_DIR}"
     }
 
     build_android_arch "arm64-v8a"
@@ -179,6 +183,7 @@ build_macos() {
         local SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
         cmake -S "${SOURCE_DIR}/lib" -B "${CMAKE_BUILD_DIR}" -G "Unix Makefiles" \
+              -DUSE_COMMON_CRYPTO=1 \
               -DCMAKE_OSX_ARCHITECTURES=${ARCH} \
               -DCMAKE_OSX_SYSROOT=${SDKROOT} \
               -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}" \
@@ -192,8 +197,13 @@ build_macos() {
               -DGTest_DIR="${GTEST_PATH}/${ARCH}/lib/cmake/GTest" \
               -Dzstd_DIR="${ZSTD_PATH}/${ARCH}/lib/cmake/zstd"
 
-        make -C "${CMAKE_BUILD_DIR}" -j
-        make -C "${CMAKE_BUILD_DIR}" install
+        cmake --build "${CMAKE_BUILD_DIR}" --target mdoc_static
+        mkdir -p "${INSTALL_DIR}/lib"
+        mkdir -p "${INSTALL_DIR}/include"
+        cp "${CMAKE_BUILD_DIR}/circuits/mdoc/libmdoc_static.a" "${INSTALL_DIR}/lib"
+        cp "${SOURCE_DIR}/lib/circuits/mdoc/mdoc_zk.h" "${INSTALL_DIR}/include"
+        #make -C "${CMAKE_BUILD_DIR}" -j mdoc_static
+        #make -C "${CMAKE_BUILD_DIR}" install
 
         # Copy final libs and headers to output
         mkdir -p "${OUTPUT_DIR}/${ARCH}/lib"
@@ -253,8 +263,13 @@ build_linux() {
               -DGTest_DIR="${GTEST_PATH}/${ARCH}/lib/cmake/GTest" \
               -Dzstd_DIR="${ZSTD_PATH}/${ARCH}/lib/cmake/zstd"
 
-        make -C "${CMAKE_BUILD_DIR}" -j1
-        make -C "${CMAKE_BUILD_DIR}" install
+        #make -C "${CMAKE_BUILD_DIR}" -j1
+        #make -C "${CMAKE_BUILD_DIR}" install
+        cmake --build "${CMAKE_BUILD_DIR}" --target mdoc_static
+        mkdir -p "${INSTALL_DIR}/lib"
+        mkdir -p "${INSTALL_DIR}/include"
+        cp "${CMAKE_BUILD_DIR}/circuits/mdoc/libmdoc_static.a" "${INSTALL_DIR}/lib"
+        cp "${SOURCE_DIR}/lib/circuits/mdoc/mdoc_zk.h" "${INSTALL_DIR}/include"
     }
 
     build_linux_arch "x86_64"

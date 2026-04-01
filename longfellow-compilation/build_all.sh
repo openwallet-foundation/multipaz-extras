@@ -13,7 +13,7 @@ build_openssl() {
     rm -rf "$OUTPUT_DIR/openssl"
     mkdir -p "$OUTPUT_DIR/openssl"
     ./build_openssl.sh linux
-    ./build_openssl.sh macos
+    # on macOS we use CommonCrypto instead of OpenSSL ./build_openssl.sh macos
     # on iOS we use CommonCrypto instead of OpenSSL ./build_openssl.sh ios
     ./build_openssl.sh android
 }
