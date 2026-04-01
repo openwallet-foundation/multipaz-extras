@@ -1,23 +1,31 @@
 diff --git a/lib/CMake/proofs.cmake b/lib/CMake/proofs.cmake
-index c5a4d1e..b94229a 100644
+index c5a4d1e..9f4bf18 100644
 --- a/lib/CMake/proofs.cmake
 +++ b/lib/CMake/proofs.cmake
-@@ -16,6 +16,7 @@ add_compile_definitions(OPENSSL_SUPPRESS_DEPRECATED=1)
+@@ -16,6 +16,11 @@ add_compile_definitions(OPENSSL_SUPPRESS_DEPRECATED=1)
  include(GoogleTest)
  find_package(benchmark REQUIRED)
  find_package(GTest REQUIRED)
-+find_package(OpenSSL REQUIRED)
++if(USE_COMMON_CRYPTO)
++    message(STATUS "Using Common Crypto instead of OpenSSL")
++else()
++    find_package(OpenSSL REQUIRED)
++endif()
  
  macro(proofs_add_testing_libraries PROG)
      # libraries that are common enough to be useful in all tests
-@@ -28,10 +29,12 @@ macro(proofs_add_testing_libraries PROG)
+@@ -28,10 +33,16 @@ macro(proofs_add_testing_libraries PROG)
  #    target_link_libraries(${PROG} -static)
  
      # on Debian buster, gtest seems to need pthread
 -    target_link_libraries(${PROG} gtest pthread)
 +    target_link_libraries(${PROG} GTest::gtest GTest::gtest_main)
      target_link_libraries(${PROG} benchmark::benchmark)
-+    target_link_libraries(${PROG} OpenSSL::Crypto)
++    if(USE_COMMON_CRYPTO)
++	message(STATUS "Using Common Crypto instead of OpenSSL")
++    else()
++	target_link_libraries(${PROG} OpenSSL::Crypto)
++    endif()
 +    target_link_libraries(${PROG} ${CMAKE_DL_LIBS})
  
 -    gtest_discover_tests(${PROG})
@@ -25,24 +33,32 @@ index c5a4d1e..b94229a 100644
  endmacro()
  
  macro(proofs_add_test PROG)
-@@ -39,6 +42,7 @@ macro(proofs_add_test PROG)
+@@ -39,6 +50,11 @@ macro(proofs_add_test PROG)
      target_link_libraries(${PROG} ec)    
      target_link_libraries(${PROG} algebra)
      target_link_libraries(${PROG} util)
-+    target_link_libraries(${PROG} OpenSSL::Crypto)
++    if(USE_COMMON_CRYPTO)
++	message(STATUS "Using Common Crypto instead of OpenSSL")
++    else()
++	target_link_libraries(${PROG} OpenSSL::Crypto)
++    endif()
      proofs_add_testing_libraries(${PROG})
  endmacro()
  
 diff --git a/lib/CMakeLists.txt b/lib/CMakeLists.txt
-index 44792d3..0bea4c0 100644
+index 8eb44aa..ff1658d 100644
 --- a/lib/CMakeLists.txt
 +++ b/lib/CMakeLists.txt
-@@ -12,30 +12,29 @@
+@@ -12,30 +12,33 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  
-+set(OPENSSL_USE_STATIC_LIBS TRUE)
-+find_package(OpenSSL REQUIRED)
++if(USE_COMMON_CRYPTO)
++    message(STATUS "Using Common Crypto instead of OpenSSL")
++else()
++    set(OPENSSL_USE_STATIC_LIBS TRUE)
++    find_package(OpenSSL REQUIRED)
++endif()
 +
  cmake_minimum_required(VERSION 3.13)
  project(proofs)
@@ -77,10 +93,10 @@ index 44792d3..0bea4c0 100644
      set(ARCH_FLAGS "")
  endif()
 diff --git a/lib/algebra/nat_test.cc b/lib/algebra/nat_test.cc
-index 9f6b7b9..5c24adc 100644
+index 8b4bb99..78700a9 100644
 --- a/lib/algebra/nat_test.cc
 +++ b/lib/algebra/nat_test.cc
-@@ -118,6 +118,7 @@ TEST(Nat, BadStrings) {
+@@ -150,6 +150,7 @@ TEST(Nat, BadStrings) {
    }
  }
  
@@ -88,7 +104,7 @@ index 9f6b7b9..5c24adc 100644
  TEST(Nat, BadDigits) {
    std::string ok = "0123456789abcdefABCDEF";
    for (uint8_t i = 0; i < (uint8_t)256; ++i) {
-@@ -126,6 +127,7 @@ TEST(Nat, BadDigits) {
+@@ -158,6 +159,7 @@ TEST(Nat, BadDigits) {
      }
    }
  }
@@ -96,41 +112,8 @@ index 9f6b7b9..5c24adc 100644
  
  TEST(Nat, Mac) {
    Nat<7> x0(
-diff --git a/lib/circuits/compiler/CMakeLists.txt b/lib/circuits/compiler/CMakeLists.txt
-index 3662fc6..2696c96 100644
---- a/lib/circuits/compiler/CMakeLists.txt
-+++ b/lib/circuits/compiler/CMakeLists.txt
-@@ -13,3 +13,4 @@
- # limitations under the License.
- 
- proofs_add_tests(compiler_test canonicalization_test)
-+target_link_libraries(compiler_test OpenSSL::Crypto)
-diff --git a/lib/circuits/ecdsa/CMakeLists.txt b/lib/circuits/ecdsa/CMakeLists.txt
-index d1c5fa1..d12040f 100644
---- a/lib/circuits/ecdsa/CMakeLists.txt
-+++ b/lib/circuits/ecdsa/CMakeLists.txt
-@@ -13,7 +13,7 @@
- # limitations under the License.
- 
- proofs_add_tests(verify_test)
--target_link_libraries(verify_test ec util)
-+target_link_libraries(verify_test ec util OpenSSL::Crypto)
- 
- proofs_add_tests(verify_external_test)
--target_link_libraries(verify_external_test ec util crypto)
-+target_link_libraries(verify_external_test ec util OpenSSL::Crypto)
-diff --git a/lib/circuits/jwt/CMakeLists.txt b/lib/circuits/jwt/CMakeLists.txt
-index 5086bbb..42797fa 100644
---- a/lib/circuits/jwt/CMakeLists.txt
-+++ b/lib/circuits/jwt/CMakeLists.txt
-@@ -13,4 +13,4 @@
- # limitations under the License.
- 
- proofs_add_tests(jwt_test)
--target_link_libraries(jwt_test flatsha base64)
-+target_link_libraries(jwt_test flatsha base64 OpenSSL::Crypto)
 diff --git a/lib/circuits/logic/logic_test.cc b/lib/circuits/logic/logic_test.cc
-index a34cc88..3992c79 100644
+index 6e9d749..4b6e18d 100644
 --- a/lib/circuits/logic/logic_test.cc
 +++ b/lib/circuits/logic/logic_test.cc
 @@ -39,11 +39,13 @@ void expect_vequal(const Logic& L, const Logic::bitvec<N>& a,
@@ -148,7 +131,7 @@ index a34cc88..3992c79 100644
  TEST(Logic, Simple) {
    const EvaluationBackend ebk(F);
 diff --git a/lib/circuits/mdoc/CMakeLists.txt b/lib/circuits/mdoc/CMakeLists.txt
-index 0b78367..e528ea3 100644
+index 46b518d..4abaef8 100644
 --- a/lib/circuits/mdoc/CMakeLists.txt
 +++ b/lib/circuits/mdoc/CMakeLists.txt
 @@ -12,9 +12,11 @@
@@ -178,30 +161,56 @@ index 0b78367..e528ea3 100644
  proofs_add_test(mdoc_signature_test)
  target_link_libraries(mdoc_signature_test mdoc)
  
-@@ -37,9 +46,9 @@ target_link_libraries(mdoc_1f_test mdoc)
+@@ -34,9 +43,17 @@ target_link_libraries(mdoc_signature_test mdoc)
  # link mdoc_zk_test explicitly against the static library
  # so that we know that the static library works
  add_executable(mdoc_zk_test mdoc_zk_test.cc)
 -target_link_libraries(mdoc_zk_test mdoc_static)
-+target_link_libraries(mdoc_zk_test mdoc_static OpenSSL::Crypto)
++if(USE_COMMON_CRYPTO)
++    target_link_libraries(mdoc_zk_test mdoc_static)
++else()
++    target_link_libraries(mdoc_zk_test mdoc_static OpenSSL::Crypto)
++endif()
  proofs_add_testing_libraries(mdoc_zk_test)
 -target_link_libraries(mdoc_zk_test crypto zstd)
-+target_link_libraries(mdoc_zk_test OpenSSL::Crypto zstd::libzstd)
++if(USE_COMMON_CRYPTO)
++    target_link_libraries(mdoc_zk_test zstd::libzstd)
++else()
++    target_link_libraries(mdoc_zk_test OpenSSL::Crypto zstd::libzstd)
++endif()
  
  set(installable_libs mdoc_static)
  install(TARGETS ${installable_libs} DESTINATION lib)
 diff --git a/lib/circuits/sha/CMakeLists.txt b/lib/circuits/sha/CMakeLists.txt
-index 943a783..c8d1f3d 100644
+index 943a783..7bccec4 100644
 --- a/lib/circuits/sha/CMakeLists.txt
 +++ b/lib/circuits/sha/CMakeLists.txt
-@@ -15,4 +15,4 @@
+@@ -15,4 +15,8 @@
  add_library(flatsha OBJECT flatsha256_witness.cc sha256_constants.cc)
  
  proofs_add_tests(flatsha256_circuit_test)
 -target_link_libraries(flatsha256_circuit_test flatsha)
-+target_link_libraries(flatsha256_circuit_test flatsha OpenSSL::Crypto)
++if(USE_COMMON_CRYPTO)
++    target_link_libraries(flatsha256_circuit_test flatsha)
++else()
++    target_link_libraries(flatsha256_circuit_test flatsha OpenSSL::Crypto)
++endif()
+diff --git a/lib/circuits/tests/jwt/CMakeLists.txt b/lib/circuits/tests/jwt/CMakeLists.txt
+index 5086bbb..32be170 100644
+--- a/lib/circuits/tests/jwt/CMakeLists.txt
++++ b/lib/circuits/tests/jwt/CMakeLists.txt
+@@ -13,4 +13,8 @@
+ # limitations under the License.
+ 
+ proofs_add_tests(jwt_test)
+-target_link_libraries(jwt_test flatsha base64)
++if(USE_COMMON_CRYPTO)
++    target_link_libraries(jwt_test flatsha base64)
++else()
++    target_link_libraries(jwt_test flatsha base64 OpenSSL::Crypto)
++endif()
 diff --git a/lib/merkle/merkle_tree_test.cc b/lib/merkle/merkle_tree_test.cc
-index 96778a2..473f0b4 100644
+index fdcd12b..6ee883d 100644
 --- a/lib/merkle/merkle_tree_test.cc
 +++ b/lib/merkle/merkle_tree_test.cc
 @@ -140,9 +140,11 @@ TEST(MerkleTree, UniqueLeaves) {
@@ -249,7 +258,7 @@ index 85a6e71..fbfd2d2 100644
  proofs_add_tests(ceildiv_test)
  
 diff --git a/lib/util/crypto.cc b/lib/util/crypto.cc
-index d09cbb3..2a2cece 100644
+index cdc289c..4d38f90 100644
 --- a/lib/util/crypto.cc
 +++ b/lib/util/crypto.cc
 @@ -18,14 +18,27 @@
@@ -283,7 +292,7 @@ index d09cbb3..2a2cece 100644
  void hex_to_str(char out[/* 2*n + 1*/], const uint8_t in[/*n*/], size_t n) {
    for (size_t i = 0; i < n; ++i) {
 diff --git a/lib/util/crypto.h b/lib/util/crypto.h
-index f345b68..0cb3fa3 100644
+index c6be977..3c0bc00 100644
 --- a/lib/util/crypto.h
 +++ b/lib/util/crypto.h
 @@ -26,46 +26,120 @@
@@ -436,7 +445,7 @@ index f345b68..0cb3fa3 100644
  // Generate n random bytes, following the openssl API convention.
  // This method will panic if the openssl library fails.
 diff --git a/lib/util/log.cc b/lib/util/log.cc
-index 6b41bac..30c0840 100644
+index b250006..42f5337 100644
 --- a/lib/util/log.cc
 +++ b/lib/util/log.cc
 @@ -22,7 +22,7 @@
