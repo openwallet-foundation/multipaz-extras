@@ -1,4 +1,5 @@
 import org.apache.commons.io.output.ByteArrayOutputStream
+import org.jetbrains.dokka.gradle.DokkaExtension
 
 // For `versionCode` we just use the number of commits.
 val projectVersionCode: Int by extra {
@@ -74,4 +75,17 @@ plugins {
 
 dependencies {
     dokka(project(":multipaz-vision"))
+}
+
+subprojects {
+    plugins.withId("org.jetbrains.dokka") {
+        configure<DokkaExtension> {
+            dokkaSourceSets.configureEach {
+                externalDocumentationLinks.register("multipaz") {
+                    url("https://developer.multipaz.org/kdocs/")
+                    packageListUrl("https://developer.multipaz.org/kdocs/package-list")
+                }
+            }
+        }
+    }
 }
